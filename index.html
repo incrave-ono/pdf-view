@@ -111,9 +111,15 @@ svg.i{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-widt
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;
 }
 #emptyCard{
-  max-width:420px;text-align:center;line-height:1.8;padding:40px 36px;border:2px dashed var(--line);
-  border-radius:14px;background:var(--panel);color:var(--sub);
+  --red:#c8141f; --red-soft:#c8141f;
+  max-width:420px;text-align:center;line-height:1.8;padding:40px 36px;
+  border:2px dashed color-mix(in srgb,var(--red) 45%,var(--line));
+  border-radius:14px;background:color-mix(in srgb,var(--red) 5%,var(--panel));color:var(--sub);
 }
+:root[data-theme="dark"] #emptyCard{--red:#e3343f;--red-soft:#ff8a90}
+@media (prefers-color-scheme:dark){:root[data-theme="auto"] #emptyCard{--red:#e3343f;--red-soft:#ff8a90}}
+#emptyCard .brandStack span{color:var(--red-soft)}
+#emptyCard button.primary{background:linear-gradient(#ea2e3a,#c8141f);color:#fff}
 .brandStack{display:flex;flex-direction:column;align-items:center;gap:10px;margin:0 0 28px;color:var(--ink);user-select:none}
 .brandStack svg{width:210px;height:auto;display:block}
 .brandStack span{font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;font-weight:500;font-size:15px;letter-spacing:.42em;margin-right:-.42em;color:var(--sub);line-height:1}
@@ -168,6 +174,18 @@ kbd{font:inherit;font-size:12px;border:1px solid var(--line);border-bottom-width
 #helpDlg{width:min(560px,94vw)}
 #settingsDlg{width:min(520px,94vw)}
 #helpDlg .dlg{max-height:84vh;overflow:auto}
+#compDlg{width:min(520px,94vw)}
+.dlg .note{color:var(--sub);font-size:12px;line-height:1.7;margin:6px 0 0}
+.dlg .warn{background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--ink);border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.7;margin-top:10px}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:6px 0 4px}
+.bar i{display:block;height:100%;width:35%;border-radius:3px;background:var(--accent);animation:barMove 1.3s ease-in-out infinite}
+@keyframes barMove{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
+@media (prefers-reduced-motion:reduce){.bar i{animation:none;width:100%;opacity:.6}}
+.sizes{display:flex;align-items:center;justify-content:center;gap:18px;margin:6px 0 12px;text-align:center}
+.sizes span{display:block;color:var(--sub);font-size:12px}
+.sizes b{font-size:22px;font-variant-numeric:tabular-nums}
+.sizes .arrow{color:var(--sub);font-size:20px}
+#compResult{text-align:center;color:var(--sub);margin:0}
 #toast{
   position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:300;max-width:80vw;
   background:var(--ink);color:var(--chrome);padding:10px 16px;border-radius:8px;line-height:1.6;
@@ -229,6 +247,7 @@ kbd{font:inherit;font-size:12px;border:1px solid var(--line);border-bottom-width
     <button class="icon" id="btnUndo" title="元に戻す（Ctrl+Z）"><svg class="i" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg></button>
     <button class="icon" id="btnPrint" title="印刷（Ctrl+P）"><svg class="i" viewBox="0 0 24 24"><path d="M7 9V3.5h10V9"/><rect x="3.5" y="9" width="17" height="8" rx="1.5"/><path d="M7 14.5h10v6H7z"/></svg></button>
     <button id="btnSave" title="編集後のPDFを保存（Ctrl+S）"><svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>保存</button>
+    <button id="btnCompress" title="PDFを圧縮してファイルサイズを小さくする"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v6M9 6l3 3 3-3M12 21v-6M9 18l3-3 3 3M4 12h16"/></svg>圧縮</button>
     <div class="sep"></div>
     <button class="icon" id="btnFull" title="全画面表示"><svg class="i" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <button class="primary" id="btnPresent" title="プレゼンモード（F5）"><svg class="i" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></svg>プレゼン</button>
@@ -286,6 +305,42 @@ kbd{font:inherit;font-size:12px;border:1px solid var(--line);border-bottom-width
     <div class="foot">
       <button id="wakeCancel">キャンセル</button>
       <button class="primary" id="wakeGo">このまま開始</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="compDlg">
+  <div class="dlg">
+    <h2>PDFを圧縮</h2>
+    <div id="compSetup">
+      <p id="compTarget"></p>
+      <div class="row">
+        <span>圧縮の強さ</span>
+        <div class="seg" id="segComp"><button data-v="screen">最小サイズ</button><button data-v="ebook">標準</button><button data-v="printer">高画質</button></div>
+        <span></span>
+      </div>
+      <p class="note" id="compNote"></p>
+      <p class="warn" id="compPreWarn" hidden></p>
+      <p class="note">初回のみ、圧縮用の部品（約16MB）をインターネットから読み込みます。開いているPDFが外部に送信されることはありません。</p>
+      <div class="foot">
+        <button id="compCancel">キャンセル</button>
+        <button class="primary" id="compStart">圧縮する</button>
+      </div>
+    </div>
+    <div id="compRun" hidden>
+      <p id="compStatus"></p>
+      <div class="bar"><i></i></div>
+      <div class="foot"><button id="compAbort">中止</button></div>
+    </div>
+    <div id="compDone" hidden>
+      <div class="sizes"><div><span>元のサイズ</span><b id="sizeBefore"></b></div><div class="arrow">→</div><div><span>圧縮後</span><b id="sizeAfter"></b></div></div>
+      <p id="compResult"></p>
+      <p id="compWarn" class="warn" hidden></p>
+      <div class="foot">
+        <button id="compClose">閉じる</button>
+        <button id="compPreview">内容を確認</button>
+        <button class="primary" id="compSave">保存</button>
+      </div>
     </div>
   </div>
 </dialog>
@@ -528,17 +583,15 @@ document.querySelectorAll('#toolbar button, #sideActions button').forEach(b =>
   b.addEventListener('mousedown', e => e.preventDefault()));
 
 /* ---------- PDFの読み込み ---------- */
+function pdfjsOpts(data) {
+  return { data, CMapReaderFactory: EmbeddedCMapReaderFactory, StandardFontDataFactory: EmbeddedStandardFontDataFactory,
+           useWorkerFetch: false, isEvalSupported: false };
+}
 async function loadPdf(file) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const head = new TextDecoder('latin1').decode(bytes.subarray(0, 1024));
   if (!head.includes('%PDF')) throw new Error('notpdf');
-  const task = pdfjsLib.getDocument({
-    data: bytes.slice(),
-    CMapReaderFactory: EmbeddedCMapReaderFactory,
-    StandardFontDataFactory: EmbeddedStandardFontDataFactory,
-    useWorkerFetch: false,
-    isEvalSupported: false,
-  });
+  const task = pdfjsLib.getDocument(pdfjsOpts(bytes.slice()));
   task.onPassword = (update, reason) => {
     const msg = reason === pdfjsLib.PasswordResponses.INCORRECT_PASSWORD
       ? `「${file.name}」のパスワードが違います。もう一度入力してください。`
@@ -826,7 +879,7 @@ function updateThumbState(scroll) {
 function updateButtons() {
   const has = S.pages.length > 0, n = S.selected.size;
   $('#btnExport').disabled = !n; $('#btnDelete').disabled = !n;
-  $('#btnInsert').disabled = !has; $('#btnRotL').disabled = !has; $('#btnRotR').disabled = !has; $('#btnPrint').disabled = !has;
+  $('#btnInsert').disabled = !has; $('#btnCompress').disabled = !has; $('#btnRotL').disabled = !has; $('#btnRotR').disabled = !has; $('#btnPrint').disabled = !has;
   ['#btnSave', '#btnPresent', '#btnPrev', '#btnNext', '#btnZoomIn', '#btnZoomOut', '#zoomSelect', '#pageInput'].forEach(s => $(s).disabled = !has);
   $('#btnUndo').disabled = !S.undo.length;
 }
@@ -1052,6 +1105,218 @@ function printPages(uids) {
   if (m === 'tab') printInTab(uids); else if (m === 'vector') printVector(uids); else printDirect(uids);
 }
 $('#btnPrint').onclick = startPrint;
+
+/* =========================================================
+   圧縮（Ghostscript をブラウザ内で実行。部品は使うときだけ読み込む）
+   ========================================================= */
+const GS_BASE = window.__GS_BASE || 'https://cdn.jsdelivr.net/npm/@jspawn/ghostscript-wasm@0.0.2/';
+const GS_WORKER_SRC = `self.onmessage = async (e) => {
+  const { base, bytes, args } = e.data;
+  let stage = 'load';
+  try {
+    const mod = await import(base + 'gs.mjs');
+    const gs = await mod.default({ locateFile: f => base + f, print: () => {}, printErr: () => {} });
+    stage = 'run'; self.postMessage({ stage: 'run' });
+    gs.FS.writeFile('in.pdf', new Uint8Array(bytes));
+    let code = 0;
+    try { code = gs.callMain(args); } catch (err) { if (err && err.name === 'ExitStatus') code = err.status; else throw err; }
+    let out = null; try { out = gs.FS.readFile('out.pdf'); } catch (err) {}
+    if (!out || !out.length) throw new Error('no output (code ' + code + ')');
+    self.postMessage({ ok: true, out }, [out.buffer]);
+  } catch (err) { self.postMessage({ ok: false, stage, msg: String(err && err.message || err) }); }
+};`;
+const COMP_NOTES = {
+  screen: '画像を72dpi程度まで下げて、最も小さくします。画面で見る・メールで送る用途向けです。',
+  ebook: '画像を150dpi程度に整えます。画質とサイズのバランスがよい標準の設定です。',
+  printer: '画像を300dpi程度に保ちます。印刷向けで、サイズはあまり小さくならない場合があります。',
+};
+const C = { preset: 'ebook', worker: null, timer: null, input: null, out: null, uids: null, run: 0 };
+function fmtSize(n) {
+  if (n >= 1024 * 1024) return (n / 1024 / 1024).toFixed(n >= 100 * 1024 * 1024 ? 0 : 1) + ' MB';
+  return Math.max(1, Math.round(n / 1024)) + ' KB';
+}
+function compView(v) { ['compSetup', 'compRun', 'compDone'].forEach(id => $('#' + id).hidden = id !== v); }
+function syncCompSeg() {
+  $('#segComp').querySelectorAll('button').forEach(b => {
+    b.classList.toggle('on', b.dataset.v === C.preset);
+    b.onclick = () => { C.preset = b.dataset.v; syncCompSeg(); };
+  });
+  $('#compNote').textContent = COMP_NOTES[C.preset];
+}
+// 埋め込まれていないフォント（標準フォント以外）を探す。日本語フォントなどは圧縮で文字化けしやすい
+function nonEmbeddedFonts(lib) {
+  const { PDFName, PDFDict, PDFArray } = PDFLib;
+  const N = x => PDFName.of(x);
+  const STD = /^(Times|Helvetica|Courier|Symbol|ZapfDingbats|Arial|CourierNew|TimesNewRoman)/i;
+  const hasFile = fd => fd instanceof PDFDict && (fd.has(N('FontFile')) || fd.has(N('FontFile2')) || fd.has(N('FontFile3')));
+  const names = new Set();
+  for (const [, obj] of lib.context.enumerateIndirectObjects()) {
+    if (!(obj instanceof PDFDict) || obj.get(N('Type')) !== N('Font')) continue;
+    const sub = obj.get(N('Subtype'));
+    const base = String(obj.get(N('BaseFont')) || '').replace(/^\//, '');
+    if (sub === N('Type0')) {
+      const desc = obj.lookup(N('DescendantFonts'));
+      const cid = desc instanceof PDFArray ? desc.lookup(0) : null;
+      if (cid instanceof PDFDict && !hasFile(cid.lookup(N('FontDescriptor')))) names.add(base);
+    } else if (sub === N('Type1') || sub === N('TrueType') || sub === N('MMType1')) {
+      if (!hasFile(obj.lookup(N('FontDescriptor'))) && !STD.test(base.replace(/^[A-Z]{6}\+/, ''))) names.add(base);
+    }
+  }
+  return [...names];
+}
+async function checkFontsBeforeCompress(uids) {
+  const srcs = [...new Set(uids.map(u => S.pages.find(p => p.uid === u).src))];
+  const found = [];
+  for (const src of srcs) {
+    try { found.push(...nonEmbeddedFonts(await getLibDoc(src))); } catch (e) { /* 保護されたPDFは確認を省略 */ }
+  }
+  return [...new Set(found)];
+}
+async function openCompress() {
+  if (!S.pages.length) return;
+  C.uids = S.pages.map(p => p.uid);
+  $('#compTarget').textContent = `編集内容（並べ替え・削除・回転など）を反映した、全${S.pages.length}ページのPDFを圧縮します。元のファイルは変更されません。`;
+  $('#compPreWarn').hidden = true;
+  syncCompSeg(); compView('compSetup'); $('#compDlg').showModal();
+  C.fonts = [];
+  const fonts = await checkFontsBeforeCompress(C.uids);
+  C.fonts = fonts;
+  if (fonts.length && $('#compDlg').open) {
+    $('#compPreWarn').textContent = `このPDFには、埋め込まれていないフォント（${fonts.slice(0, 3).join('、')}${fonts.length > 3 ? ' ほか' : ''}）が含まれています。日本語のフォントなどの場合、圧縮後に文字化けする可能性が高いため、結果を必ず「内容を確認」でご確認ください。`;
+    $('#compPreWarn').hidden = false;
+  }
+}
+// 保護されたPDFでも、元のファイルを無編集のまま丸ごと使う場合は元データで圧縮する
+function untouchedSource(uids) {
+  const list = uids.map(u => S.pages.find(p => p.uid === u));
+  const src = list[0].src; const d = S.docs.get(src);
+  if (list.length !== d.pdf.numPages) return null;
+  return list.every((p, i) => p.src === src && p.idx === i && !p.rot) ? d.bytes : null;
+}
+function stopCompress() {
+  C.run++;
+  if (C.worker) { C.worker.terminate(); C.worker = null; }
+  clearInterval(C.timer); C.timer = null;
+}
+async function startCompress() {
+  stopCompress();
+  const run = C.run;
+  compView('compRun');
+  const t0 = performance.now();
+  let phase = 'PDFを準備しています…';
+  const tick = () => { $('#compStatus').textContent = `${phase}（${Math.round((performance.now() - t0) / 1000)}秒）`; };
+  tick(); C.timer = setInterval(tick, 500);
+  try {
+    try { C.input = await buildPdf(C.uids); }
+    catch (e) {
+      const raw = e instanceof EncryptedError ? untouchedSource(C.uids) : null;
+      if (!raw) throw new Error(explainBuildError(e).replace('ページを書き出せません', '編集内容を反映して圧縮できません'));
+      C.input = raw.slice();
+    }
+    if (run !== C.run) return;
+    phase = '圧縮用の部品を読み込んでいます（初回は時間がかかります）…'; tick();
+    const quality = C.preset === 'printer' ? [] : ['-dPassThroughJPEGImages=false'];
+    const args = ['-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.5', `-dPDFSETTINGS=/${C.preset}`, ...quality,
+                  '-dNOPAUSE', '-dQUIET', '-dBATCH', '-dSAFER', '-sOutputFile=out.pdf', 'in.pdf'];
+    const workerUrl = URL.createObjectURL(new Blob([GS_WORKER_SRC], { type: 'text/javascript' }));
+    const w = new Worker(workerUrl, { type: 'module' }); C.worker = w;
+    const bytes = C.input.slice().buffer;
+    const loadErr = '圧縮用の部品を読み込めませんでした。インターネットに接続されているかご確認ください。';
+    const out = await new Promise((resolve, reject) => {
+      w.onmessage = e => {
+        const d = e.data;
+        if (d.stage === 'run' && d.ok === undefined) { phase = '圧縮しています…'; tick(); return; }
+        if (d.ok) resolve(d.out);
+        else reject(new Error(d.stage === 'load' ? loadErr : '圧縮処理に失敗しました。このPDFは圧縮に対応していない可能性があります。'));
+      };
+      w.onerror = e => { e.preventDefault(); reject(new Error(loadErr)); };
+      w.postMessage({ base: GS_BASE, bytes, args }, [bytes]);
+    });
+    URL.revokeObjectURL(workerUrl);
+    if (run !== C.run) return;
+    if (C.worker) { C.worker.terminate(); C.worker = null; }
+    C.out = out;
+    phase = '文字が正しく残っているか確認しています…'; tick();
+    const check = await verifyCompressed(C.uids, out);
+    if (run !== C.run) return;
+    clearInterval(C.timer); C.timer = null;
+    showCompressResult(check);
+  } catch (e) {
+    if (run !== C.run) return;
+    stopCompress();
+    if (!$('#compDlg').open) return;
+    compView('compSetup');
+    toast(e.message || '圧縮に失敗しました。', 7000);
+  }
+}
+// 圧縮前後でページ数と文字を比べ、文字化けの可能性を検出する
+async function verifyCompressed(uids, out) {
+  const textOf = async pg => (await pg.getTextContent()).items.map(x => x.str).join('').replace(/\s+/g, '');
+  const res = { pagesOk: true, bad: 0, checked: 0 };
+  let doc;
+  try { doc = await pdfjsLib.getDocument(pdfjsOpts(out.slice())).promise; }
+  catch (e) { res.pagesOk = false; return res; }
+  try {
+    if (doc.numPages !== uids.length) res.pagesOk = false;
+    const n = Math.min(doc.numPages, uids.length, 40);
+    for (let i = 0; i < n; i++) {
+      const p = S.pages.find(x => x.uid === uids[i]);
+      if (!p) continue;
+      const a = await textOf(await getPage(p));
+      if (!a) continue;
+      res.checked++;
+      const b = await textOf(await doc.getPage(i + 1));
+      if (a === b) continue;
+      const count = s => { const m = new Map(); for (const ch of s) m.set(ch, (m.get(ch) || 0) + 1); return m; };
+      const ma = count(a), mb = count(b); let common = 0;
+      for (const [ch, k] of ma) common += Math.min(k, mb.get(ch) || 0);
+      if (common / Math.max(a.length, b.length) < 0.95) res.bad++;
+    }
+  } finally { doc.destroy(); }
+  return res;
+}
+function showCompressResult(check) {
+  const before = C.input.length, after = C.out.length;
+  $('#sizeBefore').textContent = fmtSize(before);
+  $('#sizeAfter').textContent = fmtSize(after);
+  const smaller = after < before;
+  $('#compResult').textContent = smaller
+    ? `${Math.round((1 - after / before) * 100)}%小さくなりました。`
+    : 'この設定では、これ以上小さくできませんでした。元のPDFのままお使いいただくか、より強い設定をお試しください。';
+  const warn = $('#compWarn');
+  if (!check.pagesOk) {
+    warn.textContent = '圧縮後のページ数が元と一致しません。保存前に「内容を確認」で中身をご確認ください。';
+    warn.hidden = false;
+  } else if (check.bad) {
+    warn.textContent = `${check.bad}ページで、文字が元と異なっている（文字化け・コピーできない）可能性があります。フォントが埋め込まれていないPDFなどで起こることがあります。保存前に「内容を確認」で中身をご確認ください。`;
+    warn.hidden = false;
+  } else if (C.fonts && C.fonts.length) {
+    warn.textContent = '埋め込まれていないフォントが含まれているため、見た目の文字が化けている可能性があります。保存前に「内容を確認」で中身をご確認ください。';
+    warn.hidden = false;
+  } else warn.hidden = true;
+  $('#compSave').disabled = !smaller;
+  compView('compDone');
+}
+$('#btnCompress').onclick = openCompress;
+$('#compCancel').onclick = () => $('#compDlg').close();
+$('#compStart').onclick = startCompress;
+$('#compAbort').onclick = () => { stopCompress(); compView('compSetup'); toast('圧縮を中止しました。'); };
+$('#compClose').onclick = () => $('#compDlg').close();
+$('#compDlg').addEventListener('close', () => { stopCompress(); C.out = null; C.input = null; });
+$('#compPreview').onclick = () => {
+  if (!C.out) return;
+  const url = URL.createObjectURL(new Blob([C.out], { type: 'application/pdf' }));
+  const w = window.open(url, '_blank');
+  if (!w) toast('新しいタブを開けませんでした。ポップアップのブロック設定をご確認ください。');
+  setTimeout(() => URL.revokeObjectURL(url), 120000);
+};
+$('#compSave').onclick = () => {
+  if (!C.out) return;
+  downloadBytes(C.out, `${baseName()}_圧縮.pdf`);
+  toast('圧縮したPDFを保存しました（ダウンロードフォルダを確認してください）。');
+  $('#compDlg').close();
+};
+
 
 /* ---------- ドラッグ＆ドロップ ---------- */
 // サムネイルを外へドラッグしたときのPDFは事前に作っておく（ドラッグ開始の瞬間には非同期処理ができないため）
