@@ -138,6 +138,17 @@ svg.i{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-widt
 /* プレゼンモード */
 #present{position:fixed;inset:0;z-index:100;background:#fff;overflow:hidden;touch-action:none;user-select:none}
 #present.nocursor,#present.nocursor *{cursor:none!important}
+#pBrowse{
+  position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:14px;z-index:5;height:34px;padding:0 14px;
+  background:rgba(20,24,30,.78);color:#fff;border:1px solid rgba(255,255,255,.18);border-radius:17px;font-size:13px;
+  opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(6px);
+}
+#pBrowse.show{opacity:1;pointer-events:auto}
+#pBrowse:hover{background:rgba(200,20,31,.92)}
+#pHint{
+  position:absolute;left:50%;bottom:28px;transform:translateX(-50%);z-index:5;max-width:80%;
+  background:rgba(20,24,30,.85);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;line-height:1.6;text-align:center;
+}
 #pBaseWrap{position:absolute;left:0;top:0;transform-origin:0 0;background:#fff}
 #pBaseWrap canvas{display:block;width:100%;height:100%}
 #pSharp,#pInk{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
@@ -295,6 +306,10 @@ kbd{font:inherit;font-size:12px;border:1px solid var(--line);border-bottom-width
   <div id="pBaseWrap"></div>
   <canvas id="pSharp"></canvas>
   <canvas id="pInk"></canvas>
+  <button id="pBrowse" title="ブラウザなど別の画面を表示（B）">
+    <svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M7 6.5h.01M10 6.5h.01"/></svg>ブラウザを表示
+  </button>
+  <div id="pHint" hidden></div>
 </div>
 
 <dialog id="wakeDlg">
@@ -429,6 +444,7 @@ kbd{font:inherit;font-size:12px;border:1px solid var(--line);border-bottom-width
       <tr><td>ピンチ / <kbd>Ctrl</kbd>+ホイール / <kbd>＋</kbd> <kbd>−</kbd></td><td>拡大・縮小</td></tr>
       <tr><td>2本指スワイプ / ホイール / 右ドラッグ</td><td>拡大中の表示位置を移動</td></tr>
       <tr><td><kbd>0</kbd></td><td>画面いっぱいの表示に戻す</td></tr>
+      <tr><td>右上の「ブラウザを表示」/ <kbd>B</kbd></td><td>「プレゼンに戻る」小窓を出し、Alt+Tabで別の画面へ（プレゼンは継続）</td></tr>
     </table>
     <div class="foot"><button class="primary" id="helpClose">閉じる</button></div>
   </div>
@@ -1501,6 +1517,7 @@ async function enterPresentation() {
 }
 function exitPresentation() {
   if (!P.on) return;
+  closeReturnWindow();
   P.on = false; presentEl.hidden = true; releaseWake();
   P.strokes = []; P.drawing = null; P.panning = null; clearTimeout(P.sharpTimer); clearTimeout(cursorTimer);
   if (P.anim) cancelAnimationFrame(P.anim.raf), P.anim = null;
@@ -1674,16 +1691,67 @@ function runInk() {
   requestAnimationFrame(loop);
 }
 
+/* ブラウザ表示中の「プレゼンに戻る」小窓 */
+const RW = { win: null, away: false };
+let hintTimer;
+function presentHint(msg, ms = 4500) {
+  const h = $('#pHint'); h.textContent = msg; h.hidden = false;
+  clearTimeout(hintTimer); hintTimer = setTimeout(() => { h.hidden = true; }, ms);
+}
+function closeReturnWindow() {
+  const w = RW.win; RW.win = null; RW.away = false;
+  if (w && !w.closed) w.close();
+}
+async function openReturnWindow() {
+  $('#pBrowse').classList.remove('show');
+  if (!('documentPictureInPicture' in window)) {
+    presentHint('この環境では「プレゼンに戻る」小窓を表示できません。Alt+Tab（MacはCommand+Tab）で切り替えてください。');
+    return;
+  }
+  if (RW.win && !RW.win.closed) { presentHint('「プレゼンに戻る」小窓は表示済みです。Alt+Tab（MacはCommand+Tab）かタスクバーで、表示したい画面に切り替えてください。'); return; }
+  let w;
+  try { w = await documentPictureInPicture.requestWindow({ width: 320, height: 140 }); }
+  catch (e) { presentHint('小窓を開けませんでした。Alt+Tab（MacはCommand+Tab）で切り替えてください。'); return; }
+  RW.win = w; RW.away = false;
+  const d = w.document;
+  d.title = 'プレゼンに戻る';
+  const st = d.createElement('style');
+  st.textContent = `html,body{margin:0;height:100%;background:#1e242c;color:#e5e9ee;
+    font-family:"Hiragino Sans","Yu Gothic UI","Meiryo UI",system-ui,sans-serif}
+    body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+    button{font:inherit;font-size:15px;font-weight:700;color:#fff;border:0;border-radius:8px;padding:10px 22px;cursor:pointer;
+      background:linear-gradient(#ea2e3a,#c8141f)}
+    button:hover{filter:brightness(1.08)}
+    p{margin:0;font-size:11px;color:#9aa5b2}`;
+  d.head.append(st);
+  const b = d.createElement('button'); b.id = 'back'; b.textContent = '▶ プレゼンに戻る';
+  const info = d.createElement('p'); info.textContent = `${P.idx + 1} / ${S.pages.length} ページで一時停止中`;
+  const how = d.createElement('p'); how.textContent = 'Alt+Tab（Mac：Command+Tab）で表示したい画面へ';
+  d.body.append(b, info, how);
+  // 小窓の中でのクリックとして元のウィンドウを前面に出す（Chromeの仕様でユーザー操作が必要）
+  const sc = d.createElement('script');
+  sc.textContent = "document.getElementById('back').addEventListener('click', function () { try { opener.focus(); } catch (e) {} window.dispatchEvent(new Event('incrave-back')); });";
+  d.body.append(sc);
+  w.addEventListener('incrave-back', () => { try { window.focus(); } catch (e) {} setTimeout(closeReturnWindow, 150); });
+  w.addEventListener('pagehide', () => { if (RW.win === w) { RW.win = null; RW.away = false; } });
+}
+window.addEventListener('blur', () => { if (RW.win) RW.away = true; });
+window.addEventListener('focus', () => { if (RW.win && RW.away) closeReturnWindow(); });
+$('#pBrowse').addEventListener('click', e => { e.stopPropagation(); openReturnWindow(); });
+
 /* カーソルの自動非表示 */
 let cursorTimer;
 function showCursor() {
   presentEl.classList.remove('nocursor');
   clearTimeout(cursorTimer);
-  cursorTimer = setTimeout(() => { if (!P.drawing && !P.panning) presentEl.classList.add('nocursor'); }, 2500);
+  cursorTimer = setTimeout(() => {
+    if (!P.drawing && !P.panning) { presentEl.classList.add('nocursor'); $('#pBrowse').classList.remove('show'); }
+  }, 2500);
 }
 
 presentEl.addEventListener('pointerdown', e => {
   if (!P.on) return;
+  if (e.target.closest('#pBrowse')) return;
   showCursor();
   if (e.button === 0) {
     const s = { pts: [toPageXY(e)], end: null };
@@ -1696,6 +1764,8 @@ presentEl.addEventListener('pointerdown', e => {
 presentEl.addEventListener('pointermove', e => {
   if (!P.on) return;
   showCursor();
+  const nearCorner = !P.drawing && !P.panning && e.clientX > P.W - 220 && e.clientY < 110;
+  $('#pBrowse').classList.toggle('show', nearCorner);
   if (P.drawing) {
     const pt = toPageXY(e); const last = P.drawing.pts[P.drawing.pts.length - 1];
     if (Math.hypot((pt[0] - last[0]) * P.z, (pt[1] - last[1]) * P.z) >= 1.5) P.drawing.pts.push(pt);
@@ -1738,6 +1808,7 @@ function presentKey(e) {
   else if (k === '+' || k === ';' || (k === '=' && e.code === 'Equal')) animateZoom(P.z * 1.5, P.W / 2, P.H / 2);
   else if (k === '-' || k === '_') animateZoom(P.z / 1.5, P.W / 2, P.H / 2);
   else if (k === '0') animateZoom(1, P.W / 2, P.H / 2);
+  else if (k === 'b' || k === 'B') openReturnWindow();
   else return;
   e.preventDefault();
 }
