@@ -1,5 +1,5 @@
 // INCRAVE PDF-view：オフライン起動用。オンライン時は常に最新版を取得し、取得できないときだけ保存済みの版を使う。
-const CACHE = 'incrave-pdfview-v4';
+const CACHE = 'incrave-pdfview-v6';
 const ASSETS = ['./', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/pdf-file-256.png'];
 
